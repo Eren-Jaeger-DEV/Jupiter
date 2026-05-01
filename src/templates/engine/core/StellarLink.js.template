@@ -2,6 +2,7 @@ const { io } = require('socket.io-client');
 const logger = require('../utils/logger');
 const fs = require('fs-extra');
 const path = require('path');
+const { exec } = require('child_process');
 
 class StellarLink {
     constructor(client) {
@@ -38,6 +39,16 @@ class StellarLink {
 
                 logger.info('BEAM', `Plugin ${pluginName} successfully materialized. Restarting loader...`);
                 this.client.loadPlugins(path.join(__dirname, '../plugins'));
+
+                // Auto-Backup Protocol
+                logger.info('BACKUP', `Initiating GitHub auto-backup for ${pluginName}...`);
+                exec(`git add plugins/ && git commit -m "🛸 Auto-Backup: Received ${pluginName} from Jupiter" && git push origin main`, { cwd: path.join(__dirname, '..') }, (error, stdout, stderr) => {
+                    if (error) {
+                        logger.error('BACKUP', `Failed to backup ${pluginName}: ${error.message}`);
+                        return;
+                    }
+                    logger.info('BACKUP', `Successfully pushed ${pluginName} to GitHub.`);
+                });
             } catch (e) {
                 logger.error('BEAM', `Materialization failed: ${e.message}`);
             }
