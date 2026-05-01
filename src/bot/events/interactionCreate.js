@@ -1,4 +1,4 @@
-const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const factory = require('../../core/factory');
 const path = require('path');
 const AdmZip = require('adm-zip');
@@ -52,10 +52,11 @@ module.exports = {
                     // 3. Final Success Message
                     const embed = new EmbedBuilder()
                         .setTitle(`📦 Plugin Manufactured: ${name}`)
-                        .setDescription(`Jupiter has completed the production of your plugin. You can now download it and install it on your Moon (Callisto).`)
+                        .setDescription(prompt.length > 200 ? prompt.substring(0, 197) + '...' : prompt)
                         .addFields(
                             { name: 'Plugin ID', value: `\`${id}\``, inline: true },
-                            { name: 'Architect', value: interaction.user.tag, inline: true }
+                            { name: 'Architect', value: interaction.user.tag, inline: true },
+                            { name: 'Version', value: '1.0.0', inline: true }
                         )
                         .setColor('#00ffff')
                         .setTimestamp();
@@ -71,22 +72,25 @@ module.exports = {
                         });
                     }
 
-                    const installRow = new ActionRowBuilder()
+                    const actionRow = new ActionRowBuilder()
                         .addComponents(
                             new ButtonBuilder()
-                                .setCustomId(`install_plugin_${id}_europa`)
-                                .setLabel('Install to Europa')
-                                .setStyle(ButtonStyle.Success)
-                                .setEmoji('🚀')
+                                .setCustomId(`deploy_plugin_${id}`)
+                                .setLabel('Deploy 🚀')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId(`download_plugin_${id}`)
+                                .setLabel('Download 💾')
+                                .setStyle(ButtonStyle.Secondary)
                         );
 
                     await marketplaceChannel.send({
                         embeds: [embed],
-                        components: [installRow]
+                        components: [actionRow]
                     });
 
                     await interaction.followUp({ 
-                        content: `✅ Plugin successfully manufactured! Check ${marketplaceChannel} to install it.`, 
+                        content: `✅ Plugin successfully manufactured! Check ${marketplaceChannel} to deploy or download it.`, 
                         files: [attachment],
                         ephemeral: true 
                     });
@@ -155,21 +159,71 @@ module.exports = {
         }
 
         if (interaction.isButton()) {
-            if (interaction.customId.startsWith('install_plugin_')) {
-                const parts = interaction.customId.split('_');
-                const moonId = parts.pop();
-                const pluginId = parts.slice(2).join('_');
+            const dockingStation = require('../../core/DockingStation');
 
-                await interaction.reply({ content: `📡 Initiating Stellar Beam for **\${pluginId}** to **\${moonId}**...`, ephemeral: true });
+            if (interaction.customId.startsWith('deploy_plugin_')) {
+                const pluginId = interaction.customId.replace('deploy_plugin_', '');
+                const moons = Array.from(dockingStation.moons.keys());
+
+                if (moons.length === 0) {
+                    return interaction.reply({ content: '❌ No Moons are currently docked. Beam is offline.', ephemeral: true });
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`select_moon_${pluginId}`)
+                    .setPlaceholder('Select a Moon to beam the plugin to...')
+                    .addOptions(
+                        moons.map(moon => 
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel(moon.charAt(0).toUpperCase() + moon.slice(1))
+                                .setValue(moon)
+                                .setEmoji('🌑')
+                        )
+                    );
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                await interaction.reply({ 
+                    content: `📡 Select a target for **${pluginId}**:`, 
+                    components: [row], 
+                    ephemeral: true 
+                });
+            }
+
+            if (interaction.customId.startsWith('download_plugin_')) {
+                const pluginId = interaction.customId.replace('download_plugin_', '');
+                const pluginPath = path.join(__dirname, '../../../output', pluginId);
+
+                if (!fs.existsSync(pluginPath)) {
+                    return interaction.reply({ content: '❌ Plugin source not found on this station.', ephemeral: true });
+                }
+
+                await interaction.reply({ content: '📦 Packaging plugin for download...', ephemeral: true });
+
+                const zip = new AdmZip();
+                zip.addLocalFolder(pluginPath);
+                const buffer = zip.toBuffer();
+                const attachment = new AttachmentBuilder(buffer, { name: `${pluginId}.zip` });
+
+                await interaction.followUp({ 
+                    content: `💾 Here is your plugin package for **${pluginId}**:`, 
+                    files: [attachment], 
+                    ephemeral: true 
+                });
+            }
+        }
+
+        if (interaction.isStringSelectMenu()) {
+            if (interaction.customId.startsWith('select_moon_')) {
+                const pluginId = interaction.customId.replace('select_moon_', '');
+                const moonId = interaction.values[0];
+
+                await interaction.update({ content: `📡 Initiating Stellar Beam for **${pluginId}** to **${moonId}**...`, components: [] });
 
                 try {
                     const dockingStation = require('../../core/DockingStation');
                     const pluginPath = path.join(__dirname, '../../../output', pluginId);
                     
-                    if (!fs.existsSync(pluginPath)) {
-                        throw new Error(`Plugin data not found at \${pluginPath}`);
-                    }
-
                     const getAllFiles = (dir, fileList = []) => {
                         const files = fs.readdirSync(dir);
                         for (const file of files) {
@@ -192,10 +246,10 @@ module.exports = {
 
                     await dockingStation.beamPlugin(moonId, pluginId, files);
                     
-                    await interaction.followUp({ content: `✅ **\${pluginId}** successfully beamed to **\${moonId}**!`, ephemeral: true });
+                    await interaction.followUp({ content: `✅ **${pluginId}** successfully beamed to **${moonId}**!`, ephemeral: true });
                 } catch (error) {
                     console.error("Beam Error:", error);
-                    await interaction.followUp({ content: `❌ Beam failed: \${error.message}`, ephemeral: true });
+                    await interaction.followUp({ content: `❌ Beam failed: ${error.message}`, ephemeral: true });
                 }
             }
         }
