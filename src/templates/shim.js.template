@@ -1,0 +1,55 @@
+/**
+ * CALLISTO UNIVERSAL SHIM
+ * Automatically resolves utility paths for Jack and Callisto architectures.
+ */
+
+const path = require('path');
+const fs = require('fs');
+
+let logger, configManager, database;
+
+// Detection Logic
+const paths = [
+    // Callisto Style
+    {
+        logger: path.join(__dirname, '../../utils/logger'),
+        config: path.join(__dirname, '../../services/configManager'),
+        db: path.join(__dirname, '../../database/models')
+    },
+    // Jack Style
+    {
+        logger: path.join(__dirname, '../../bot/utils/logger'),
+        config: path.join(__dirname, '../../bot/utils/configManager'),
+        db: path.join(__dirname, '../../bot/database/models')
+    }
+];
+
+for (const p of paths) {
+    try {
+        if (fs.existsSync(p.logger + '.js') || fs.existsSync(p.logger)) {
+            logger = require(p.logger);
+            configManager = require(p.config);
+            database = fs.existsSync(p.db) ? require(p.db) : {};
+            break;
+        }
+    } catch (e) {
+        // Continue
+    }
+}
+
+if (!logger) {
+    // Fallback to console if everything fails
+    logger = {
+        info: (tag, msg) => console.log(`[${tag}] INFO: ${msg}`),
+        warn: (tag, msg) => console.warn(`[${tag}] WARN: ${msg}`),
+        error: (tag, msg) => console.error(`[${tag}] ERROR: ${msg}`),
+        critical: (tag, msg) => console.error(`[${tag}] CRITICAL: ${msg}`)
+    };
+}
+
+module.exports = {
+    logger,
+    configManager,
+    database,
+    path: __dirname
+};

@@ -1,0 +1,11 @@
+const { logger } = require('../../core');
+
+module.exports = {
+  name: '{{eventName}}',
+  async execute(...args) {
+    // The last argument is usually the client in both Jack and Callisto
+    const client = args[args.length - 1];
+    
+    logger.info('{{name}}', `Event {{eventName}} triggered.`);
+  }
+};

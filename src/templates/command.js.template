@@ -1,0 +1,22 @@
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { logger } = require('../../core');
+
+module.exports = {
+  name: '{{commandName}}',
+  category: '{{category}}',
+  permissions: [{{permissions}}],
+  cooldown: { user: 5000, guild: 2000 },
+  data: new SlashCommandBuilder()
+    .setName('{{commandName}}')
+    .setDescription('{{commandDescription}}'),
+
+  async run(ctx) {
+    // Both Jack and Callisto use a 'ctx' or similar wrapper that supports .reply()
+    await ctx.reply({ 
+      content: 'Hello from the **{{name}}** plugin! 🧩',
+      ephemeral: true 
+    });
+    
+    logger.info('{{name}}', `Command /{{commandName}} executed by ${ctx.user.tag}`);
+  }
+};

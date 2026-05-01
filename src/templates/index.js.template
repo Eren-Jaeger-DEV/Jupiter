@@ -1,0 +1,35 @@
+const { logger } = require('./core');
+
+module.exports = {
+  /**
+   * Global Load Hook
+   * Runs once when the bot boots.
+   */
+  async load(client) {
+    logger.info('{{name}}', 'Plugin loaded into engine.');
+  },
+
+  /**
+   * Global Unload Hook
+   * Runs when the plugin is removed or the bot shuts down.
+   */
+  async unload(client) {
+    logger.info('{{name}}', 'Plugin unloaded.');
+  },
+
+  /**
+   * Guild-Specific Enable Hook
+   * Runs when the plugin is toggled ON for a server.
+   */
+  async enable(guild) {
+    logger.info('{{name}}', `Enabled for guild: ${guild.name}`);
+  },
+
+  /**
+   * Guild-Specific Disable Hook
+   * Runs when the plugin is toggled OFF for a server.
+   */
+  async disable(guild) {
+    logger.info('{{name}}', `Disabled for guild: ${guild.name}`);
+  }
+};

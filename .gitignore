@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment Variables (NEVER commit these — contains bot token, API key, Stellar Secret)
+.env
+
+# Manufacturing output — generated at runtime, not stored in git
+output/
+
+# Logs
+logs/
+*.log
+
+# Temp scripts
+prepare-beam.js
+list-models.js
+
+# OS
+.DS_Store
+Thumbs.db

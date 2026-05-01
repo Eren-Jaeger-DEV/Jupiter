@@ -1,0 +1,91 @@
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const path = require('path');
+const fs = require('fs');
+const logger = require('../utils/logger');
+const banner = require('../utils/banner');
+
+class MoonClient extends Client {
+    constructor() {
+        super({
+            intents: [
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildMembers,
+            ],
+        });
+
+        this.commands = new Collection();
+        this.plugins = new Collection();
+    }
+
+    async start() {
+        banner.print('{{name}}');
+        
+        // 1. Connect Stellar Link
+        const StellarLink = require('./StellarLink');
+        this.link = new StellarLink(this);
+        this.link.connect();
+
+        // 2. Load Core Commands
+        this.loadCommands(path.join(__dirname, '../commands/core'));
+        
+        // 2. Load Plugins
+        this.loadPlugins(path.join(__dirname, '../plugins'));
+
+        // 3. Register Slash Commands
+        await this.registerSlashCommands();
+
+        // 4. Login
+        await this.login(process.env.DISCORD_TOKEN);
+        
+        this.on('ready', () => {
+            logger.info('SYSTEM', `{{name}} is online and stabilized.`);
+        });
+    }
+
+    loadCommands(dir) {
+        if (!fs.existsSync(dir)) return;
+        const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'));
+        for (const file of files) {
+            const command = require(path.join(dir, file));
+            this.commands.set(command.data.name, command);
+        }
+    }
+
+    loadPlugins(dir) {
+        if (!fs.existsSync(dir)) return;
+        const folders = fs.readdirSync(dir).filter(f => fs.statSync(path.join(dir, f)).isDirectory());
+        for (const folder of folders) {
+            const pluginPath = path.join(dir, folder);
+            const manifestPath = path.join(pluginPath, 'plugin.json');
+            if (fs.existsSync(manifestPath)) {
+                const manifest = require(manifestPath);
+                this.plugins.set(manifest.id, manifest);
+                
+                // Load plugin commands/events
+                this.loadCommands(path.join(pluginPath, 'commands'));
+                // (Event loading logic would go here)
+                
+                logger.info('LOADER', `Plugin Activated: ${manifest.name}`);
+            }
+        }
+    }
+
+    async registerSlashCommands() {
+        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+        const commandData = Array.from(this.commands.values()).map(c => c.data.toJSON());
+
+        try {
+            await rest.put(
+                Routes.applicationCommands(Buffer.from(process.env.DISCORD_TOKEN.split('.')[0], 'base64').toString()),
+                { body: commandData },
+            );
+            logger.info('REST', 'Successfully synchronized slash commands.');
+        } catch (error) {
+            logger.error('REST', `Command sync failed: ${error.message}`);
+        }
+    }
+}
+
+module.exports = MoonClient;

@@ -1,0 +1,17 @@
+{
+  "name": "{{id}}",
+  "version": "1.0.0",
+  "description": "{{description}}",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.2.1",
+    "colors": "^1.4.0",
+    "axios": "^1.6.7",
+    "adm-zip": "^0.5.10"
+  }
+}

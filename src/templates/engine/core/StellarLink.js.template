@@ -1,0 +1,58 @@
+const { io } = require('socket.io-client');
+const logger = require('../utils/logger');
+const fs = require('fs-extra');
+const path = require('path');
+
+class StellarLink {
+    constructor(client) {
+        this.client = client;
+        this.socket = null;
+    }
+
+    connect() {
+        const url = process.env.JUPITER_LINK || 'http://localhost:3000';
+        const moonId = '{{id}}';
+        const secret = process.env.STELLAR_SECRET;
+
+        this.socket = io(url, {
+            query: { moonId, secret }
+        });
+
+        this.socket.on('connect', () => {
+            logger.info('LINK', `Successfully docked with Mother (Jupiter).`);
+        });
+
+        this.socket.on('plugin_beam', async (data) => {
+            const { pluginName, files } = data;
+            logger.info('BEAM', `Receiving incoming plugin: ${pluginName}`);
+            
+            try {
+                const pluginPath = path.join(__dirname, '../plugins', pluginName);
+                await fs.ensureDir(pluginPath);
+                
+                for (const [filePath, content] of Object.entries(files)) {
+                    const fullPath = path.join(pluginPath, filePath);
+                    await fs.ensureDir(path.dirname(fullPath));
+                    await fs.writeFile(fullPath, content);
+                }
+
+                logger.info('BEAM', `Plugin ${pluginName} successfully materialized. Restarting loader...`);
+                this.client.loadPlugins(path.join(__dirname, '../plugins'));
+            } catch (e) {
+                logger.error('BEAM', `Materialization failed: ${e.message}`);
+            }
+        });
+
+        this.socket.on('disconnect', () => {
+            logger.warn('LINK', `Lost connection to Mother. Attempting to re-orbit...`);
+        });
+    }
+
+    sendTelemetry(data) {
+        if (this.socket) {
+            this.socket.emit('telemetry', data);
+        }
+    }
+}
+
+module.exports = StellarLink;

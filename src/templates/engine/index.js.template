@@ -1,0 +1,16 @@
+require('dotenv').config();
+const MoonClient = require('./core/MoonClient');
+const logger = require('./utils/logger');
+
+const client = new MoonClient();
+
+async function start() {
+    try {
+        await client.start();
+    } catch (error) {
+        logger.error('CRITICAL', `Failed to start {{name}}: ${error.message}`);
+        process.exit(1);
+    }
+}
+
+start();
