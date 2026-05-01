@@ -60,11 +60,13 @@ module.exports = {
                         .setColor('#00ffff')
                         .setTimestamp();
 
-                    let marketplaceChannel = interaction.guild.channels.cache.find(c => c.name === 'plugin-marketplace');
+                    let marketplaceChannel = interaction.guild.channels.cache.find(c => c.name === '🛒-plugin-market');
                     if (!marketplaceChannel) {
+                        const factoryCategory = interaction.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.includes('THE FACTORY'));
                         marketplaceChannel = await interaction.guild.channels.create({
-                            name: 'plugin-marketplace',
+                            name: '🛒-plugin-market',
                             type: ChannelType.GuildText,
+                            parent: factoryCategory ? factoryCategory.id : null,
                             topic: 'Jupiter Plugin Marketplace - Click to deploy plugins directly to your Moons!'
                         });
                     }
