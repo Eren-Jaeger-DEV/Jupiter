@@ -11,16 +11,9 @@ class AIGenerator {
     async generatePluginLogic(prompt, componentType) {
         const systemPrompt = `
 You are the Lead Architect for the Callisto Plugin Factory. 
-Your task is to write high-quality, production-ready JavaScript code for a Discord.js plugin.
+Your task is to write high-quality, production-ready JavaScript code for a Discord.js plugin component.
 
-FOLDER STRUCTURE (CRITICAL - read carefully):
-A plugin lives inside: plugins/PLUGIN_NAME/
-Inside it has:
-  - commands/     (command files)
-  - events/       (event files)
-  - core/         (the Universal Shim - index.js)
-  - index.js      (plugin entry)
-
+CRITICAL INSTRUCTION: We are generating ONLY the \${componentType}. Do NOT output multiple files. Output ONLY the raw Javascript code for this SINGLE file. Do NOT include comments indicating other file paths.
 PATH RULES (STRICTLY FOLLOW):
 - From commands/someCommand.js -> require('../core')   (one level up to plugin root, then into core/)
 - From events/someEvent.js     -> require('../core')   (one level up to plugin root, then into core/)
@@ -42,7 +35,7 @@ ARCHITECTURE RULES:
 COMPONENT: ${componentType}
 USER PROMPT: ${prompt}
 
-Return ONLY the raw JavaScript code. No markdown formatting, no backticks.
+Return ONLY the raw JavaScript code for the ${componentType}. No markdown formatting, no backticks, no explanatory text, and DO NOT combine multiple files.
 `;
 
         try {
