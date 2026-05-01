@@ -1,0 +1,71 @@
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
+const fs = require('fs-extra');
+const path = require('path');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('sync-marketplace')
+        .setDescription('Resyncs all manufactured plugins to the #plugin-marketplace channel.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    async run(interaction) {
+        await interaction.reply({ content: '🔄 Scanning Jupiter\'s plugin archives...', ephemeral: true });
+
+        const outputDir = path.join(__dirname, '../../../output');
+        
+        if (!fs.existsSync(outputDir)) {
+            return interaction.followUp({ content: '❌ Output directory not found. No plugins to sync.', ephemeral: true });
+        }
+
+        let marketplaceChannel = interaction.guild.channels.cache.find(c => c.name === 'plugin-marketplace');
+        if (!marketplaceChannel) {
+            marketplaceChannel = await interaction.guild.channels.create({
+                name: 'plugin-marketplace',
+                type: ChannelType.GuildText,
+                topic: 'Jupiter Plugin Marketplace - Click to deploy plugins directly to your Moons!'
+            });
+        }
+
+        const folders = fs.readdirSync(outputDir).filter(f => fs.statSync(path.join(outputDir, f)).isDirectory());
+        let syncedCount = 0;
+
+        for (const folder of folders) {
+            const manifestPath = path.join(outputDir, folder, 'plugin.json');
+            if (fs.existsSync(manifestPath)) {
+                try {
+                    const manifest = require(manifestPath);
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📦 Plugin Manufactured: ${manifest.name}`)
+                        .setDescription(`Jupiter has completed the production of your plugin. You can now download it and install it on your Moon (Callisto).`)
+                        .addFields(
+                            { name: 'Plugin ID', value: `\`${manifest.id}\``, inline: true },
+                            { name: 'Architect', value: manifest.author || 'Jupiter Core', inline: true }
+                        )
+                        .setColor('#00ffff')
+                        .setTimestamp();
+
+                    const installRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`install_plugin_${manifest.id}_europa`)
+                                .setLabel('Install to Europa')
+                                .setStyle(ButtonStyle.Success)
+                                .setEmoji('🚀')
+                        );
+
+                    await marketplaceChannel.send({
+                        embeds: [embed],
+                        components: [installRow]
+                    });
+                    
+                    syncedCount++;
+                } catch (error) {
+                    console.error(`Failed to sync plugin ${folder}:`, error);
+                }
+            }
+        }
+
+        await interaction.followUp({ content: `✅ Successfully restored **${syncedCount}** plugins to the ${marketplaceChannel}!`, ephemeral: true });
+    }
+};
