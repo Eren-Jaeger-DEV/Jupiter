@@ -1,4 +1,4 @@
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const factory = require('../../core/factory');
 const path = require('path');
 const AdmZip = require('adm-zip');
@@ -60,8 +60,31 @@ module.exports = {
                         .setColor('#00ffff')
                         .setTimestamp();
 
+                    let marketplaceChannel = interaction.guild.channels.cache.find(c => c.name === 'plugin-marketplace');
+                    if (!marketplaceChannel) {
+                        marketplaceChannel = await interaction.guild.channels.create({
+                            name: 'plugin-marketplace',
+                            type: ChannelType.GuildText,
+                            topic: 'Jupiter Plugin Marketplace - Click to deploy plugins directly to your Moons!'
+                        });
+                    }
+
+                    const installRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`install_plugin_${id}_europa`)
+                                .setLabel('Install to Europa')
+                                .setStyle(ButtonStyle.Success)
+                                .setEmoji('🚀')
+                        );
+
+                    await marketplaceChannel.send({
+                        embeds: [embed],
+                        components: [installRow]
+                    });
+
                     await interaction.followUp({ 
-                        embeds: [embed], 
+                        content: `✅ Plugin successfully manufactured! Check ${marketplaceChannel} to install it.`, 
                         files: [attachment],
                         ephemeral: true 
                     });
@@ -125,6 +148,52 @@ module.exports = {
                         content: `❌ ${'ENGINE FAILURE:'.bold} Jupiter's manufacturing line stalled. Error: ${error.message}`, 
                         ephemeral: true 
                     });
+                }
+            }
+        }
+
+        if (interaction.isButton()) {
+            if (interaction.customId.startsWith('install_plugin_')) {
+                const parts = interaction.customId.split('_');
+                const moonId = parts.pop();
+                const pluginId = parts.slice(2).join('_');
+
+                await interaction.reply({ content: `📡 Initiating Stellar Beam for **\${pluginId}** to **\${moonId}**...`, ephemeral: true });
+
+                try {
+                    const dockingStation = require('../../core/DockingStation');
+                    const pluginPath = path.join(__dirname, '../../../output', pluginId);
+                    
+                    if (!fs.existsSync(pluginPath)) {
+                        throw new Error(`Plugin data not found at \${pluginPath}`);
+                    }
+
+                    const getAllFiles = (dir, fileList = []) => {
+                        const files = fs.readdirSync(dir);
+                        for (const file of files) {
+                            const stat = fs.statSync(path.join(dir, file));
+                            if (stat.isDirectory()) {
+                                getAllFiles(path.join(dir, file), fileList);
+                            } else {
+                                fileList.push(path.join(dir, file));
+                            }
+                        }
+                        return fileList;
+                    };
+
+                    const files = {};
+                    const filePaths = getAllFiles(pluginPath);
+                    for (const fullPath of filePaths) {
+                        const relativePath = path.relative(pluginPath, fullPath);
+                        files[relativePath] = await fs.readFile(fullPath, 'utf8');
+                    }
+
+                    await dockingStation.beamPlugin(moonId, pluginId, files);
+                    
+                    await interaction.followUp({ content: `✅ **\${pluginId}** successfully beamed to **\${moonId}**!`, ephemeral: true });
+                } catch (error) {
+                    console.error("Beam Error:", error);
+                    await interaction.followUp({ content: `❌ Beam failed: \${error.message}`, ephemeral: true });
                 }
             }
         }
